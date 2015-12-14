@@ -1,0 +1,1091 @@
+options(error=NULL) 
+
+####
+
+
+#all_datas_tb_controls <- list(pemc_filter,tb1_21LGCD8A,tb2_23LGCD8A,tb2_23LGCD8B,tb2_23LGCD8C,tb2_23LNCD81,tb3_24LGCD8A,tb3_24LGCD8B,tb3_24LGCD8C,tb4_26LGCD8A,tb4_26LGCD8C,tb5_27LGCD8A,tb5_27LGCD8B,mothera_filter,motherb_filter,motherc_filter,childa1_filter,childa2_filter,childb1_filter,childb2_filter,childc1_filter,childc2_filter,m1d1_filtered,m1d2_filtered,m2d1_filtered,m2d2_filtered,f1d1_filtered,f1d2_filtered,donor1,donor2,donor3,donor4,donor5,donor6)
+
+######
+
+
+lm_eqn <- function(df){
+  m <- lm(y ~ x, df);
+  eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                   list(a = format(coef(m)[1], digits = 2), 
+                        b = format(coef(m)[2], digits = 2), 
+                        r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+
+######
+
+get_edit_ny_eso_vars <- function(data){
+  print(length(data[,1]))
+  data <- as.data.frame(data[grep('\\*', data[,"Amino.acid.sequence"], invert=TRUE),])
+  print(length(data[,1]))
+  data <- get_rename_column(data,"TCRBV","V.gene")
+  data <- get_rename_column(data,"TCRBJ","J.gene")
+  data$V.gene <- str_replace_all(data$V.gene,"C","")
+  data$J.gene <- str_replace_all(data$J.gene,"C","")
+  data <- get_relative_abundance_frequency_column(data)
+  return(data)  
+}
+
+
+
+get_del <- function(x){
+  total <- rbind(vac1,vac2,vac3,vac4,vac6,vac7,vac8,vac_4weeks,vac_3months)
+  overlap <- as.data.frame(table(total$Amino.acid.sequence))
+  overlap <- subset(overlap, Freq==9)
+  
+  count=0  
+  seqs<-c()
+  
+  for(i in overlap$Var1){
+    count2=0
+    df <- get_find_seq(total,i,"full_aa")    
+    for(perc in df[,5]){
+      if(perc>=.5){
+        count2=count2+1
+      }
+    }
+    if(count2>=5){
+      print(i)
+    }
+    
+  }
+  print(count)
+  df <- data.frame(matrix(ncol=1,nrow=length(seqs)))
+  df$Amino.acid.sequence <- seqs
+  df[,1] <- NULL
+  return(df)
+}
+
+##################################
+
+get_log10_simpson <- function(x){
+  calc <- get_calc_simpson(x)
+  calc <- 1/calc
+  calc <- log10(calc)
+  return(calc)
+}
+
+#############################################
+
+get_diversity_pbmc <- function(x){
+  
+  #all_vacs
+  male1 = list(m1d1_filtered,m1d2_filtered)
+  male2 = list(m2d1_filtered,m2d2_filtered)
+  mothers = list(mothera_filter,motherb_filter,motherc_filter)
+  children = list(childa1_filter,childa2_filter,childb1_filter,childb2_filter,childc1_filter,childc2_filter)
+  tb = list(pemc_filter,pbmc_filter)
+  
+  cancer_divs <- c()
+  male1_divs<- c()
+  male2_divs<- c()
+  mothers_divs<- c()
+  children_divs<- c()
+  tb_divs <- c()
+  
+  
+  for(i in male1){
+    calc<-get_log10_simpson(i)
+    male1_divs<-c(male1_divs,calc)
+  }
+  
+  for(i in male2){
+    calc<-get_log10_simpson(i)
+    male2_divs<-c(male2_divs,calc)
+  }
+  
+  for(i in mothers){
+    calc<-get_log10_simpson(i)
+    mothers_divs<-c(mothers_divs,calc)
+  }
+  
+  for(i in children){
+    calc<-get_log10_simpson(i)
+    children_divs<-c(children_divs,calc)
+  }
+  
+  for(i in all_vacs){
+    calc<-get_log10_simpson(i)
+    cancer_divs<-c(cancer_divs,calc)
+  }
+  
+  for(i in tb){
+    calc <- get_log10_simpson(i)
+    tb_divs<-c(tb_divs,calc)
+  }
+  
+  print(cancer_divs)
+  print(male1_divs)
+  print(male2_divs)
+  print(mothers_divs)
+  print(children_divs)
+  print(tb_divs)
+  
+}
+
+#####################################################
+
+get_jitter_plots <- function(x){
+  
+  # used list = all_datas_tb_controls
+  n_controls <- 360 # 21 + 339
+  
+  group <- c(rep("TB infected lungs",13),rep("Healthy individuals",n_controls))
+  individuals <- c(rep("Lung",13),rep("Healthy individual",n_controls))
+  log10SDI <- c(healthy339_simpson,2.360332,2.005113,1.762019,1.899667,1.873261,2.601087,2.44766,2.250928,2.352451,2.511512,2.090254,2.021048,2.2656,2.885988,2.699981,1.462745,3.805395,3.662022,3.48373,2.782645,4.685296,2.434735,3.756851,3.62521,2.877389,3.01592,2.230394,2.420169,2.572217,3.183964,2.627845,2.083747,2.345216,2.190811)
+  
+  #nsde <- c(0.7380729 ,0.7362468 ,0.6742308 ,0.6742308 ,0.7378008 ,0.7523561 ,0.7523561 ,0.7523561 ,0.6647278 ,0.7693009 ,0.6606747 ,0.7850078 ,0.7693009 ,0.7497172 ,0.7362468 ,0.7497172 ,0.7301461 ,0.7715721 ,0.7809015 ,0.7359755 ,0.8008741 ,0.7362468 ,0.8114181 ,0.8114181 ,0.7817769 ,0.6826148 ,0.6583522 ,0.6583522 ,0.7121404 ,0.7362468 ,0.6599409 ,0.7989072 ,0.7223461 ,0.6742308)
+  nsde <- log10SDI
+  
+  
+  df <- data.frame(matrix(ncol=4,nrow=(13+n_controls)))
+  colnames(df) <- c("group","individuals","log10SDI","NSDE")
+  
+  df[,1] <- group
+  df[,2] <- individuals
+  df[,3] <- log10SDI
+  df[,4] <- nsde
+  
+  #print(df)
+  
+  df2 <- data.frame(matrix(ncol=2,nrow=2))
+  colnames(df2)<-c("group","meanline")
+  df2$group <- c("TB infected lungs","Healthy individuals")
+  df2$meanline <- c(mean(df[1:13,3]),mean(df[14:(13+n_controls),3]))
+  
+  a_plot <- qplot(group, log10SDI, data = df, geom=c("jitter"),colour=group, size=10,xlab="") + 
+    
+    facet_grid(.~group,space="free",scales="free_x") + 
+    labs(x="", y="Log10 1/(SDI)",title="Simpson diversity index\n",color="") +
+    guides(size=FALSE) +
+    geom_errorbar(width=0.7, aes(y=meanline, ymax=meanline, ymin=meanline), data=df2, linetype="dashed",colour="#000000",size=1)+
+    theme(legend.position="none") +
+    theme(axis.text.x = element_blank(), axis.title.x=element_blank()) 
+  
+  
+  df3 <- data.frame(matrix(ncol=2,nrow=2))
+  colnames(df3)<-c("group","meanline")
+  df3$group <- c("TB infected lungs","Healthy individuals")
+  df3$meanline <- c(mean(df[1:13,4]),mean(df[14:(13+n_controls),4]))
+  
+  print(df)
+  
+  b_plot <- qplot(group, NSDE, data = df, geom=c("jitter"),colour=group, size=10,xlab="") + 
+    
+    facet_grid(.~group,space="free",scales="free_x") + 
+    labs(x="", y="NSDE",title="Shannon entropy\n",color="") +
+    guides(size=FALSE) +
+    geom_errorbar(data=df3,width=0.7, aes(y=meanline, ymax=meanline, ymin=meanline),  linetype="dashed",colour="#000000",size=1)+
+    theme(legend.position="none") +
+    theme(axis.text.x = element_blank(), axis.title.x=element_blank()) +
+    scale_y_continuous(limits = c(0, 1))
+  
+  
+  function_statistcs <- function(x){
+    GroupA <- df[1:13,3]
+    GroupB <- df[14:(13+n_controls),3]  
+    g = factor(c(rep("GroupA", length(GroupA)), rep("GroupB", length(GroupB)))) 
+    v = c(GroupA, GroupB) 
+    print(median(GroupA))
+    print(median(GroupB))  
+    print(wilcox_test(v ~ g, distribution="exact"))
+    print(wilcox.test(v ~ g,))
+    
+    GroupA <- df[1:13,4]
+    GroupB <- df[14:(13+n_controls),4]  
+    g = factor(c(rep("GroupA", length(GroupA)), rep("GroupB", length(GroupB)))) 
+    v = c(GroupA, GroupB) 
+    print(median(GroupA))
+    print(median(GroupB))  
+    print(wilcox_test(v ~ g, distribution="exact"))
+    print(wilcox.test(v ~ g,))
+  }
+  
+  
+  plot(a_plot)
+  #plot(b_plot)
+  
+  #function_statistics
+  
+  
+  #return(as.data.frame(df))
+  
+  
+}
+
+########################################
+
+get_unique_aa_nt_ratio <- function(data,origin_data){
+  unique_aas <- unique(data$Amino.acid.sequence)
+  ratios <- c()
+  reads <- c()
+  for(i in unique_aas){
+    df<-subset(origin_data,Amino.acid.sequence==i)
+    ratio <- 1-(1/length(unique(df$Junction.nucleotide.sequence)))
+    ratios <- c(ratios,ratio)
+    reads <- c(reads,sum(df$Number.of.reads))
+  }
+  df<-data.frame(matrix(ncol=3,nrow=length(unique_aas)))
+  colnames(df)<-c("Amino.acid.sequence","AA.NT.ratio","Number.of.reads")
+  df[,1]<-unique_aas
+  df[,2]<-ratios
+  df[,3]<-reads
+  df$log2reads <- log2(df[,3])
+  minx <- min(df[,4])
+  
+  df2 <- as.data.frame(df$log2reads)
+  df2$y <- df[,2]
+  colnames(df2)<-c("x","y")
+  
+  
+  p <- qplot(df[,4], df[,2], data = df, size=10)+
+    geom_smooth(method="lm",formula=y~x,color="#000000",size=1,linetype="dashed")+
+    labs(x="Log2 Clonal Size",y="1 - AA / NT ratio",title="")+
+    theme(legend.position="none") +
+    scale_y_continuous(limits = c(0, 1))+
+    geom_text(x = (minx+2), y = 1, label = lm_eqn(df2), parse = TRUE,size=5)
+  plot(p)
+  
+  
+  return(df)
+}
+
+##########################################################3
+#tb1_21LGCD8A<- get_table_immunoseq("21LGCD8A","21LGCD8A","tb")
+#tb2_23LGCD8A<- get_table_immunoseq("23LGCD8A","23LGCD8A","tb")
+#tb2_23LGCD8B<- get_table_immunoseq("23LGCD8B","23LGCD8B","tb")
+#tb2_23LGCD8C<- get_table_immunoseq("23LGCD8C","23LGCD8C","tb")
+#tb2_23LNCD81<- get_table_immunoseq("23LNCD81","23LNCD81","tb")
+#tb3_24LGCD8A<- get_table_immunoseq("24LGCD8A","24LGCD8A","tb")
+#tb3_24LGCD8B<- get_table_immunoseq("24LGCD8B","24LGCD8B","tb")
+#tb3_24LGCD8C<- get_table_immunoseq("24LGCD8C","24LGCD8C","tb")
+#tb4_26LGCD8A<- get_table_immunoseq("26LGCD8A","26LGCD8A","tb")
+#tb4_26LGCD8C<- get_table_immunoseq("26LGCD8C","26LGCD8C","tb")
+#tb5_27LGCD8A<- get_table_immunoseq("27LGCD8A","27LGCD8A","tb")
+#tb5_27LGCD8B<- get_table_immunoseq("27LGCD8B","27LGCD8B","tb")
+###########################################################
+
+get_entropy <- function(data){
+  
+  entropy <- c()
+  
+  i <- unique(data$Amino.acid.sequence)
+  
+  #for(i in data$Amino.acid.sequence){
+  
+  freq = prop.table(table(strsplit(i, '')[1]))
+  
+  M <- length(freq)
+  
+  #freq = get_count_aminoacids_monos(data,"full","diversity","")
+  
+  value <- -sum(freq * log2(freq) / log2(20) ) #shannon entropy
+  #value <- value/log2(M) #normalize shannon entropy by deviding by log(M), the maximum possible diversity index.
+  
+  #entropy <- c(entropy,value)
+  
+  #}
+  
+  #print(mean(entropy))
+  
+  return(value)
+}
+
+###########################################################
+
+
+get_ks_plot <- function(data1,data2){
+  
+  #tb_comb <- combn(13,2)
+  #control_combn <- combn(21,2)
+  
+  #select the numbers, add by control + 13 by the numbers.
+  
+  #######################
+  
+  fout <- c("-","*")
+  vgenes <- data1$V.gene
+  leeg_v <- c()
+  for(i in vgenes){if(nchar(i)<=6){leeg_v <- c(leeg_v,i)}
+                   if(nchar(i)>6){i <- substr(i,1,6)      
+                                  if(substr(i,nchar(i),nchar(i)) %in% fout){i <- substr(i,1,(nchar(i)-1))
+                                                                            leeg_v <- c(leeg_v,i)}
+                                  else{leeg_v <- c(leeg_v,i)}}}  
+  data1$V.gene <- leeg_v
+  
+  vgenes <- data2$V.gene
+  leeg_v <- c()
+  for(i in vgenes){if(nchar(i)<=6){leeg_v <- c(leeg_v,i)}
+                   if(nchar(i)>6){i <- substr(i,1,6)      
+                                  if(substr(i,nchar(i),nchar(i)) %in% fout){i <- substr(i,1,(nchar(i)-1))
+                                                                            leeg_v <- c(leeg_v,i)}
+                                  else{leeg_v <- c(leeg_v,i)}}}  
+  data2$V.gene <- leeg_v
+  
+  #################
+  
+  jgenes <- data1$J.gene
+  leeg_j <- c()
+  for(i in jgenes){if(nchar(i)<=6){leeg_j <- c(leeg_j,i)}
+                   if(nchar(i)>6){i <- substr(i,1,6)      
+                                  if(substr(i,nchar(i),nchar(i)) %in% fout){i <- substr(i,1,(nchar(i)-1))
+                                                                            leeg_j <- c(leeg_j,i)}
+                                  else{leeg_j <- c(leeg_j,i)}}}  
+  data1$J.gene <- leeg_j
+  
+  jgenes <- data2$J.gene
+  leeg_j <- c()
+  for(i in jgenes){if(nchar(i)<=6){leeg_j <- c(leeg_j,i)}
+                   if(nchar(i)>6){i <- substr(i,1,6)                         
+                                  if(substr(i,nchar(i),nchar(i)) %in% fout){i <- substr(i,1,(nchar(i)-1))                                                 
+                                                                            leeg_j <- c(leeg_j,i)       }
+                                  else{leeg_j <- c(leeg_j,i)       }    }  }  
+  data2$J.gene <- leeg_j
+  
+  dfx1 <- data1
+  dfx2 <- data2
+  
+  ###########################
+  
+  data1_distincts <- length(unique(data1$Amino.acid.sequence))
+  data2_distincts <- length(unique(data2$Amino.acid.sequence))
+  
+  data1 <- get_vj_usage(dfx1,type="diversity")
+  data2 <- get_vj_usage(dfx2,type="diversity")
+  
+  df <- rowSums(data1) 
+  df <- as.data.frame(df)
+  df$data2 <- rowSums(data2)
+  
+  df[, "rf_data1"] <- df[,1] / data1_distincts * 100 
+  df[, "rf_data2"] <- df[,2] / data2_distincts * 100
+  
+  ####
+  
+  df2 <- colSums(data1) 
+  df2 <- as.data.frame(df2)
+  df2$data2 <- colSums(data2) 
+  
+  df2[, "rf_data1"] <- df2[,1] / data1_distincts * 100 #divide the usage value by the distinct value 
+  df2[, "rf_data2"] <- df2[,2] / data2_distincts * 100
+  
+  data1_freq_v <- c()
+  for(i in df[,"rf_data1"]){data1_freq_v <- c(data1_freq_v,i)}
+  data2_freq_v <- c()
+  for(i in df[,"rf_data2"]){data2_freq_v <- c(data2_freq_v,i)}
+  data1_freq_j <- c()
+  for(i in df2[,"rf_data1"]){data1_freq_j <- c(data1_freq_j,i)}
+  data2_freq_j <- c()
+  for(i in df2[,"rf_data2"]){data2_freq_j <- c(data2_freq_j,i)}
+  
+  v.p.value <- ks.test(data1_freq_v,data2_freq_v)$p.value
+  
+  j.p.value <- ks.test(data1_freq_j,data2_freq_j)$p.value
+  
+  v.p.value <- -log10(v.p.value)
+  j.p.value <- -log10(j.p.value)
+  
+  return(c(v.p.value,j.p.value)) #[1] = is -log10 pks value of v.gene and [2] is j.gene
+}
+
+###############################################################################
+
+get_del <- function(x){
+  
+  df<- data.frame(matrix(ncol=2,nrow=78))
+  
+  count=0
+  for(i in as.data.frame(combn(13,2))){
+    
+    count=count+1
+    
+    eerste <- i[1]
+    tweede <- i[2]
+    
+    a <- get_ks_plot(all_datas_tb_controls[[eerste]],all_datas_tb_controls[[tweede]])
+    
+    df[count,] <- a
+    
+    if(count==1){View(df)}
+    
+  }
+  
+}
+
+##########################################################################
+
+#origin_df <- read.table("masterfile.txt",header = TRUE,sep="\t",quote ="",stringsAsFactors = FALSE, na.strings="")
+#df <- origin_df
+#df2 <- subset(df, HLA!="MR1")
+#meta_hiv <- subset(df2, Pathogen=="HIV")
+#meta_ebv <- subset(df2, Pathogen=="EBV")
+#meta_cmv <- subset(df2, Pathogen=="CMV")
+
+##########################################################################
+
+
+get_hivs<- function(x){
+  
+  
+  count=0
+  for(i in meta_hiv$Epitope.sequence){
+    count=count+1
+    
+    if(i=="FL9"){meta_hiv[count,"Epitope.sequence"]<-"FPRPWLHGL"}
+    if(i=="IM9"){meta_hiv[count,"Epitope.sequence"]<-"IIKDYGKQM"}
+    if(i=="TL9"){meta_hiv[count,"Epitope.sequence"]<-"TPQDLNTML"}
+    
+    if(i=="HI10"){meta_hiv[count,"Epitope.sequence"]<-"HPKVSSEVHI"}
+    if(i=="LI9"){meta_hiv[count,"Epitope.sequence"]<-"LPPIVAKEI"}
+    if(i=="TL10"){meta_hiv[count,"Epitope.sequence"]<-"TPGPGVRYPL"}
+    
+  }
+  
+  return(meta_hiv)
+}
+
+#####################################################################################
+
+get_fasta_sep_epitopes_hiv <- function(x){
+  for(i in unique(meta_hiv$Epitope)){
+    get_fasta_file(subset(meta_hiv, Epitope.sequence==i),paste("responder_",i,sep=""),"fasta","full_aa",8,999999999999999)
+  }
+}
+
+######################################################
+
+get_hivs_sep_ep_motifs <- function(x){
+  
+  test$n_seqs <- ""
+  test$n_has_motif <- ""
+  test$freq <- ""
+  
+  count=0
+  for(ep in test$Epitope.sequence){
+    count=count+1
+    
+    df <- subset(meta_hiv, Epitope.sequence==ep)
+    
+    a <- length(df[,1])
+    
+    df2 <- get_find_seq(df,test[count,2],"full_aa")
+    
+    b <- length(df2[,1])
+    
+    total <- b/a*100
+    
+    print(test[count,2])
+    print(total)
+    print("")
+    
+    test[count,"n_seqs"] <- a
+    test[count,"n_has_motif"] <- b
+    test[count,"freq"] <- total
+    
+  }
+  
+  return(test)
+  
+}
+
+
+#######################################
+
+#for(i in unique(meta_hiv$Epitope.sequence)){
+#  
+#  pdf(paste(i,".pdf",sep=""))
+#  get_atchley_or_kidera_pca_random_background(subset(meta_hiv, Epitope.sequence==i),"atchley")
+#  dev.off()
+
+
+#0}
+
+########################################################
+
+get_kidera_sequence <- function(data){
+  print("Calculating Kidera factors...")
+  factors <- c("helix.bend.pref", "side.chain.size", "extended.str.pref", "hydrophobicity", "double.bend.pref", "partial.spec.vol", "flat.ext.pref", "occurrence.alpha.reg", "pK.C", "surrounding.hydrop")
+  count=0  
+  total <- c()
+  data <- as.data.frame(data$Amino.acid.sequence)
+  for(seq in data[,1]){
+    count=count+1
+    kidera_seq <- seq
+    for(factor in factors){
+      kfx <- kidera(seq,factor)
+      kidera_seq <- c(kidera_seq,kfx)
+    }
+    total <- c(total,kidera_seq)
+  }
+  data <- as.data.frame(matrix(total,ncol=11,nrow=count,byrow=TRUE))
+  colnames(data)<-c("Amino.acid.sequence","KF1","KF2","KF3","KF4","KF5","KF6","KF7","KF8","KF9","KF10")  
+  data[,2:11] <- apply(data[,2:11],2, function(x) as.numeric(x))
+  print("DONE: each CDR3 amino acid sequence converted into Kidera factor sequence.")
+  return(data)
+}
+
+################################################################
+
+get_kidera_matrix <- function(x){
+  
+  controls <- seq(14,34,by=1)
+  
+  data <- data.frame(matrix(ncol=22,nrow=10))
+  rownames(data) <- c("helix.bend.pref", "side.chain.size", "extended.str.pref", "hydrophobicity", "double.bend.pref", "partial.spec.vol", "flat.ext.pref", "occurrence.alpha.reg", "pK.C", "surrounding.hydrop")
+  
+  data[,1] <- apply(get_kidera_sequence(HPRK)[,2:11],2,mean)
+  
+  controls <- seq(14,34,by=1)
+  
+  count=1
+  for(i in controls){
+    control <- all_datas_tb_controls[[i]]
+    count=count+1
+    data[,count] <- apply(get_kidera_sequence(get_random_subset(control,10))[,2:11],2,mean)
+    
+    
+  }
+  
+  
+  return(data)
+  
+}
+
+
+get_del <- function(x){
+  
+  df <- as.data.frame(t(a))
+  df[1,"group"] <- "Responder"
+  df[2:22,"group"] <- "Non-responder"
+  
+  b_plot <- qplot(group, df[,x], data = df, geom=c("jitter"),colour=group, size=10,xlab="") + 
+    
+    facet_grid(.~group,space="free",scales="free_x") + 
+    #labs(x="", y="NSDE",title="Shannon entropy\n",color="") +
+    guides(size=FALSE) +
+    #geom_errorbar(data=df3,width=0.7, aes(y=meanline, ymax=meanline, ymin=meanline),  linetype="dashed",colour="#000000",size=1)+
+    theme(legend.position="none") #+
+  #theme(axis.text.x = element_blank(), axis.title.x=element_blank()) +
+  #scale_y_continuous(limits = c(0, 1))
+  
+  plot(b_plot)
+  
+  
+}
+
+
+
+# laat zien aan bram qplot(data=data.frame(forpca$x),x=PC1,y=PC2,colour=group)
+
+
+
+get_del <- function(x){
+  
+  
+  
+  for(i in unique(meta_hiv$Epitope.sequence)){
+    
+    data <- subset(meta_hiv, Epitope.sequence==i)
+    backup<-data
+    
+    print(i)
+    
+    cat("[1] seqs : ",length(data[,1]),"\n")
+    
+    data <- get_kidera_list(data)
+    
+    data <- prcomp(data[,2:11],scale.=F)
+    
+    plot(qplot(data=data.frame(data$x),x=PC1,y=PC2))
+    
+    
+    test <- as.data.frame(data$x)
+    
+    cutoff <- readline(prompt="x cutoff ? :") 
+    
+    lr <- readline(prompt="left or right? :")
+    if(lr=="l"){vector <- cutoff <= test[,1] }
+    if(lr=="r"){vector <- cutoff >= test[,1] }
+    
+    print(backup[vector,"Amino.acid.sequence"])
+    
+  }
+  
+}
+
+
+
+
+get_del2<- function(x){
+  
+  
+  count=0
+  for(i in all_datas_tb_controls){
+    count=count+1
+    
+    
+    a <- as.data.frame(get_andecs(i,1,1,1))
+    a$lib <- count
+    
+    if(count==1){b<-a}
+    if(count>1){b<-rbind(b,a)}
+    
+    if(count==13){return(b)}
+    
+  }
+  
+  
+  
+  
+}
+
+##########################################################################
+
+get_rdrg_in_controls <- function(controls,pattern,vgenes,jgenes){
+  total <- c()
+  family <- c()
+  count=0
+  for(i in controls){
+    count=count+1
+    print(count)
+    if(count>=14){ 
+      #i <- subset(controls,lib==i)
+      i <- get_relative_abundance_frequency_column(i)
+      
+      x <- get_find_seq(i,pattern,"full_aa")
+      total_rep <- format(sum(x$Relative.frequency.percentage),digits=2,nsmall=2)
+      
+      x2 <- i[i$V.gene==vgenes & i$J.gene==jgenes,]
+      #x2 <- get_relative_abundance_frequency_column(x2)
+      x2 <- get_find_seq(x2,pattern,"full_aa") 
+      family_rep <- format(sum(x2$Relative.frequency.percentage),digits=2,nsmall=4)
+      
+      total <- c(total,total_rep)
+      family <- c(family,family_rep)
+      
+    }
+  }
+  
+  df <- data.frame(matrix(ncol=3,nrow=length(total)))
+  colnames(df)<- c("Control","Total.Repertoire","Specific.Families")
+  df$Control <- seq(1,length(family),by=1)
+  df$Total.Repertoire <- total
+  df$Specific.Families <- family
+  return(df)
+}
+
+#######################################################################################
+
+get_events_nt <- function(data,pattern,vgenes,jgenes){
+  if("vIndex" %in% colnames(data)){
+    warning("Junction nucleotide sequence might be wrong.")
+    data$Junction.nucleotide.sequence<-substr(data$Junction.nucleotide.sequence,(data$vIndex+1),nchar(data$Junction.nucleotide.sequence))}
+  
+  print(data[1:5,"Junction.nucleotide.sequence"])
+  #data<-subset(data, nchar(Junction.nucleotide.sequence)<80)  
+  if(length(vgenes)>1 && length(jgenes)>1){data <- data[data$V.gene==vgenes & data$J.gene==jgenes,]}
+  data <- get_find_seq(data,pattern,"full_aa") 
+  data$Junction.nucleotide.sequence <- toupper(data$Junction.nucleotide.sequence)
+  
+  seqs <- ref_genes
+  TRBD1_1 <- toupper(TRBD101_seq)
+  TRBD2_1 <- toupper(TRBD201_seq)
+  TRBD2_2 <- toupper(TRBD202_seq)
+  events_vector <- c()
+  
+  count=0
+  for(i in data$Junction.nucleotide.sequence){
+    realclone1 <- "leeg"  
+    realclone2 <- "leeg"
+    count=count+1  
+    
+    v.gene <- data[count,"V.gene"]
+    j.gene <- data[count,"J.gene"]
+    
+    v1 <- str_extract_all(v.gene,"\\(?[0-9,.]+\\)?")[[1]]
+    v2 <- c()
+    for(k in v1){if(k!="01"){v2<-c(v2,k)}}
+    if(length(v2)==1){v.gene<-paste("TRBV",v2,sep="")}
+    if(length(v2)==2){v.gene<-paste("TRBV",v2[1],"-",v2[2],sep="")}
+    
+    j1 <- str_extract_all(j.gene,"\\(?[0-9,.]+\\)?")[[1]]
+    j2 <- c()
+    for(k in j1){if(k!="01"){j2<-c(j2,k)}}
+    if(length(j2)==1){j.gene<-paste("TRBJ",j2,sep="")}
+    if(length(j2)==2){j.gene<-paste("TRBJ",j2[1],"-",j2[2],sep="")}
+    
+    ref_v <- seqs[grep(pattern=v.gene,x=seqs$Gene),][,2]
+    ref_j <- seqs[grep(pattern=j.gene,x=seqs$Gene),][,2]
+    
+    check1 <- as.character(str_extract_all(data[count,"J.gene"],"\\(?[0-9,.]+\\)?")[[1]])
+    check <- substr(j1[1],1,1)
+    
+    if(check==0){check<-substr(check1[1],2,2)} #e.g. TRBV01, ignore 0.
+    
+    if(check==1){
+      realclone1 <- paste(ref_v,TRBD1_1,ref_j,sep="")    
+      events <- stringdist(i,realclone1,method="lv")}     
+    
+    if(check==2){
+      realclone1 <- paste(ref_v,TRBD2_1,ref_j,sep="")   
+      realclone2 <- paste(ref_v,TRBD2_2,ref_j,sep="")
+      event1 <- stringdist(i,realclone1,method="lv")
+      event2 <- stringdist(i,realclone2,method="lv")
+      events <- min(c(event1,event2))
+    }    
+    
+    events_vector <- c(events_vector,min(events))
+    #end loop 
+  }  
+  
+  #making plots
+  if(length(events_vector>=1)){
+    
+    data$Events <- events_vector
+    data<- subset(data, Events<=80)
+    
+    par(pty='s')
+    par(mfrow=c(2,2))
+    
+    plot((data$Number.of.reads),(data$Events),xlab="Clone Size",ylab="Events")
+    
+    x1 <- log10(data$Number.of.reads)
+    y1 <- log10(data$Events)
+    plot(x1,y1,xlab="Log 10 Clone Size",ylab="Log 10 Events")
+    
+    plot(nchar(data$Junction.nucleotide.sequence),data$Events,xlab="Junction nucleotide sequence length",ylab="Events")
+    
+    barplot(table(data$Events),las=2,xlab="Events",ylab="Frequency")
+  }
+  
+  table_events <- data.frame(table(data$Events))
+  return(data)  
+}
+
+##################
+
+get_corr_events_plot <- function(data){
+  
+  data$log10size <- log10(data$Number.of.reads)
+  max_ab <- max(data$log10size)
+  p <- seq(0,100,by=5)
+  print(max_ab)
+  vec<-c()
+  print(p)
+  for(i in p){
+    print(i)
+    if(i==5){
+      
+      df <- data[data$log10size <= max_ab*(i/100) , ]
+      vec<-c(vec,mean(df$Events))
+    }
+    
+    
+    if(i==95){
+      
+      df <- data[data$log10size >= max_ab*(i/100) , ]
+      vec<-c(vec,mean(df$Events))
+    }
+    
+    
+    else{
+      
+      df <- data[data$log10size >= max_ab*(i/100) & data$log10size <= ((i/100)+0.05)*max_ab , ]
+      vec<-c(vec,mean(df$Events))
+    }
+    
+    
+  }
+  
+  
+  vec<-as.data.frame(vec)
+  return(vec)
+
+
+}
+
+######
+
+get_rdrg_families <- function(data){
+  x1 <- subset(data, V.gene=="TRBV20-1*01" & J.gene=="TRBJ2-7*01")
+  x2 <- subset(data, V.gene=="TRBV7-2*01" & J.gene=="TRBJ1-1*01")
+  x3 <- subset(data, V.gene=="TRBV20-1*01" & J.gene=="TRBJ2-1*01")
+  x4 <- subset(data, V.gene=="TRBV5-1*01" & J.gene=="TRBJ2-3*01")
+  data <-rbind(x1,x2,x3,x4)
+  return(data)  
+}
+
+
+
+####
+
+get_del123<-function(X){
+  par(mfrow=c(6,3))
+  count=0
+  vec<-c()
+  for(i in all_datas_tb_controls){
+    count=count+1
+    if(count>=14){
+      i <- get_rdrg_families(i)
+      a <-get_events2(i,"....RD[RG].....","","")
+      vec<-c(vec,a$Events)
+    }
+  }
+  return(vec)
+}
+
+##############################################
+
+#vec<-c()
+#for(i in unique(healthy578$lib)){
+#  vec<-c(vec, get_log10_simpson(subset(healthy578, lib==i))  )
+#}
+
+
+get_del_this <- function(x){
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p12")
+  p12 <- get_read_multiple_results(x)
+  
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p13")
+  p13 <- get_read_multiple_results(x)
+  
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p14")
+  p14 <- get_read_multiple_results(x)
+  
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p15")
+  p15 <- get_read_multiple_results(x)
+  
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p16")
+  p16 <- get_read_multiple_results(x)
+  
+  setwd("~/tmp/repseq_data/healthy578/hip-samples-tsv/p17")
+  p17 <- get_read_multiple_results(x)
+}
+
+#################################################################################
+
+#foreach ( i = unique(healthy_578$lib)) %dopar% {print(get_log10_simpson(subset(healthy_578, lib==i)))}
+
+#############################################
+
+get_clones_for_meme <- function(x){
+  
+  vec<-c()
+  for(i in tb_patients){
+    i <- as.data.frame(i)
+    
+    if(length(i[,1])>100){  i <- i[1:100,] }
+    i[,15] <- as.numeric(  i[,15] )
+    i[,16] <- as.numeric(  i[,16] )
+    i[,20] <- as.numeric(  i[,20] )
+    var <- get_var_imm(i)$Variable.region.amino.acid.sequence
+    
+    vec<- c(vec,var)
+    
+    
+    
+    #doe lv clustering
+    
+    #maak groeperingern voor meme
+    
+  }
+  View(vec)
+  distSamples <- vec
+  distSamples <- stringdistmatrix(distSamples,distSamples,method="lv")
+  View(distSamples)
+  hc <- hclust(as.dist(distSamples),method="complete")
+  dend <- as.dendrogram(hc)
+  par(cex=0.5, mar=c(5, 8, 4, 1))
+  plot(dend, xlab="", ylab="", main="", sub="", axes=FALSE)
+  par(cex=1)
+  axis(2)
+  
+  
+  aa <- table(cutree(hc,h=1))
+  View(aa)
+  
+  #View(vec)
+}
+
+
+get_var_imm <- function(data){
+  a <- data$V.gene.start.position
+  b <- data$V.gene.end.position
+  c <- data$J.gene.start.position
+  b <- b - a
+  c <- c - a
+  
+  v_end <- b
+  v_end_aa <- v_end / 3
+  v_end_aa <- trunc(v_end_aa) + 1
+  
+  j_begin <-c
+  j_begin_aa <- j_begin / 3
+  j_begin_aa <- ceiling(j_begin_aa) 
+  
+  data$Variable.region.amino.acid.sequence <- substr(data$Amino.acid.sequence, v_end_aa, j_begin_aa)
+  data$Length.variable.amino.acid.region <- nchar(data$Variable.region.amino.acid.sequence)
+  return(data)
+}
+
+
+#######################################
+
+
+get_del <- function(x){
+  #vacs <- list(vac1,vac2,vac3,vac4,vac6,vac7,vac8,vac_3months,vac_4weeks)
+  a <- c()
+  for(i in tb_patients){
+    b <- get_andecs(i,0.1,1,1)
+    b <- unique(b$Amino.acid.sequence)
+    a <- c(a,b)
+  }
+  a<-table(a)
+  a <- as.data.frame(a)
+  a<- subset(a,Freq==4)
+  return(a)
+}
+
+#############################################################
+
+
+get_full_genes_names_for_meta <- function(data){
+  v.genes <- data$V.gene
+  j.genes <- data$J.gene
+  vlist <- c(1,2,9,13,14,15,16,17,18,19,21,23,24,25,26,27,28,30)
+  vecv<-c()
+  vecj<-c()
+  for(i in v.genes){
+    if(nchar(i)>=3){
+      tmp<-str_extract_all(i,"\\(?[0-9,.]+\\)?")[[1]]
+      i<-paste("TRBV",tmp[1],"-",tmp[2],"*01",sep="")
+      vecv<-c(vecv,i)}
+    if(nchar(i)<=2){
+      if(i %in% vlist){
+        k<-paste("TRBV",i,"*01",sep="")
+        vecv<-c(vecv,k)}
+      else{
+        k<-paste("TRBV",i,sep="")
+        vecv<-c(vecv,k)}}}
+  for(i in j.genes){
+    if(nchar(i)>=3){vecj<-c(vecj,paste("TRBJ",i,"*01",sep=""))}
+    else{vecj<-c(vecj,i)}}
+  data$V.gene <- vecv
+  data$J.gene <- vecj
+  return(data)
+}
+
+get_kidera_chars <- function(data){
+  aa <- data$Amino.acid.sequence
+  factors <- c("helix.bend.pref", "side.chain.size", "extended.str.pref", "hydrophobicity", "double.bend.pref", "partial.spec.vol", "flat.ext.pref", "occurrence.alpha.reg", "pK.C", "surrounding.hydrop")
+  vec<-c()
+  for(i in aa){for(f in factors){vec<-c(vec,kidera(i,f))}}
+  df <- data.frame(matrix(vec,ncol=length(aa),nrow=10)) 
+  rownames(df)<-factors
+  colnames(df)<-aa
+  df$Mean <- apply(df, 1, mean)
+  df$Sd <- apply(df,1,sd)
+  return(df)
+}
+
+
+
+
+
+get_del <- function(x){
+  
+  #a<-meta_hiv
+  b<-meta_ebv
+  c<-meta_cmv
+  x <- length(b[,1])+length(c[,1]) #length(a[,1])+
+  x <- x/2 #3
+  d<-get_random_subset(m1d1_filtered,x)
+  
+  #a1<-get_kidera_sequence(a)
+  b1<-get_kidera_sequence(b)
+  c1<-get_kidera_sequence(c)
+  d1<-get_kidera_sequence(d)
+  
+  #a1$lib<- "HIV"
+  b1$lib<- "EBV"
+  c1$lib<- "CMV"
+  d1$lib<- "CONTROL"
+  
+  forpca<-rbind(b1,c1,d1) # a1
+  forpca2<-forpca
+  clone_groups<-forpca$lib
+  forpca<-prcomp(forpca[,2:11],scale.=FALSE)
+  plot(qplot(data=data.frame(forpca$x),x=PC1,y=PC2,colour=clone_groups))
+  return(forpca2)
+  
+  
+  
+}
+
+
+get_del <- function(x){
+  
+  count=0
+  for(i in unique(healthy578$lib)){
+    i <- subset(healthy578, lib==i)
+    count=count+1
+    a<-(length(i[,1]))
+    b<-(length(unique(i$Junction.nucleotide.sequence)))
+    if(a!=b){print(count)}
+  }
+  
+}
+
+
+
+get_del12<-function(data){
+  
+  par(pty='s')
+  par(mfrow=c(2,2))
+  
+  plot((data$Number.of.reads),(data$Events),xlab="Clone Size",ylab="Events")
+  
+  x1 <- log10(data$Number.of.reads)
+  y1 <- log10(data$Events)
+  plot(x1,y1,xlab="Log 10 Clone Size",ylab="Log 10 Events")
+  
+  plot(nchar(data$Junction.nucleotide.sequence),data$Events,xlab="Junction nucleotide sequence length",ylab="Events")
+  
+  barplot(table(data$Events),las=2,xlab="Events",ylab="Frequency")
+}
+
+
+
+#count=0
+#for(i in all_datas_tb_controls){
+#  count=count+1
+#  if(count>13){
+#    print(get_events2(i[1:1000,],"","","")[1:5,"Events"])}}
+
+
+get_healthy <- function(count_min,count_max){ #read all results.tsv in a dir.
+  count=0
+  count2=0
+  for(i in list.files(path=getwd())){count=count+1
+    if(i %in% healthy_list){if(count>=count_min && count<=count_max){count2=count2+1      
+        print(i)
+        if(count2==1){first<-read.table(i,header=TRUE,stringsAsFactors=FALSE,sep="\t",quote="")
+          first$lib <- i}
+        if(count2!=1){second<-read.table(i,header=TRUE,stringsAsFactors=FALSE,sep="\t",quote="")
+          second$lib <- i
+          first <- rbind(first,second)}}}}
+  return(first)}
+
+##############################
+
+for(i in 1:length(ref_genes[,1])){
+  cat(">",ref_genes[i,1],"\n",ref_genes[i,2],"\n",sep="")
+}
+
+
+
